@@ -1,2 +1,3 @@
 <?php
-require __DIR__ . '/php/progress_update.php';
+header('Location: hm/progress_update.php');
+exit;

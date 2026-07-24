@@ -74,7 +74,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <a href="dashboard.php#assigned-works"><i class="fa-solid fa-briefcase"></i> Assigned Works</a>
             <a class="active" href="progress_update.php"><i class="fa-solid fa-file-lines"></i> Progress Updates</a>
             <a href="fund_utilization.php"><i class="fa-solid fa-wallet"></i> Fund Utilization</a>
-            <a href="dashboard.php#blockers"><i class="fa-solid fa-triangle-exclamation"></i> Blockers / Delays</a>
+            <a href="report_blocker.php"><i class="fa-solid fa-triangle-exclamation"></i> Blockers / Delays</a>
             <a href="notifications.php"><i class="fa-solid fa-bell"></i> Notifications</a>
             <a href="profile.php"><i class="fa-solid fa-user"></i> Profile</a>
             <a href="../login.php"><i class="fa-solid fa-right-from-bracket"></i> Logout</a>
@@ -128,9 +128,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </form>
             </section>
         </main>
+        <footer class="footer"><div class="footer-grid"><div><div>© 2026 Samruddh Shala E-Portal</div><div>School Infrastructure Monitoring System</div></div><div><a href="#">Privacy Policy</a> · <a href="#">Help & Support</a> · <a href="#">Contact</a></div><div><strong>System Status:</strong> Online</div></div></footer>
     </div>
 </div>
-<footer class="footer"><div class="footer-grid"><div><div>© 2026 Samruddh Shala E-Portal</div><div>School Infrastructure Monitoring System</div></div><div><a href="#">Privacy Policy</a> · <a href="#">Help & Support</a> · <a href="#">Contact</a></div><div><strong>System Status:</strong> Online</div></div></footer>
 <script src="../assets/js/hm-dashboard.js"></script>
 <script>
 function validateProgressForm() {

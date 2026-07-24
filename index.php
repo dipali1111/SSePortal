@@ -4,6 +4,11 @@
  * Landing page for bilingual toggle, gallery upload, live camera capture, and login.
  */
 
+// Include database connection if available
+if (file_exists('db.php')) {
+    include_once 'db.php';
+}
+
 $uploadDir = realpath(__DIR__ . '/../uploads') ?: __DIR__ . '/../uploads';
 if (!is_dir($uploadDir)) {
     mkdir($uploadDir, 0755, true);
@@ -14,8 +19,9 @@ $uploadError = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['upload_photo'])) {
     $capturedData = trim($_POST['captured_image'] ?? '');
-    $projectNotes = trim($_POST['project_notes'] ?? '');
+    $projectNotes = htmlspecialchars(trim($_POST['project_notes'] ?? ''), ENT_QUOTES, 'UTF-8');
 
+    // Handle Captured Live Photo
     if ($capturedData !== '') {
         if (preg_match('/^data:image\/(png|jpeg|jpg|webp);base64,/', $capturedData, $matches)) {
             $type = strtolower($matches[1]);
@@ -35,15 +41,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['upload_photo'])) {
         } else {
             $uploadError = 'Captured image format is not supported.';
         }
-    } elseif (!empty($_FILES['photoFile']['name'])) {
+    } 
+    // Handle File Upload from Gallery
+    elseif (!empty($_FILES['photoFile']['name'])) {
         $file = $_FILES['photoFile'];
         if ($file['error'] !== UPLOAD_ERR_OK) {
             $uploadError = 'File upload error. Please try again.';
         } else {
             $allowedExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
             $extension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
-            if (!in_array($extension, $allowedExtensions, true)) {
-                $uploadError = 'Invalid file type. Please upload a JPG, PNG, GIF, or WEBP image.';
+            
+            // MIME Type Verification
+            $finfo = finfo_open(FILEINFO_MIME_TYPE);
+            $mimeType = finfo_file($finfo, $file['tmp_name']);
+            finfo_close($finfo);
+
+            $allowedMimes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+
+            if (!in_array($extension, $allowedExtensions, true) || !in_array($mimeType, $allowedMimes, true)) {
+                $uploadError = 'Invalid file type. Please upload a valid JPG, PNG, GIF, or WEBP image.';
             } else {
                 $filename = sprintf('gallery_%s.%s', date('YmdHis'), $extension);
                 $destination = $uploadDir . DIRECTORY_SEPARATOR . $filename;
@@ -65,8 +81,8 @@ $alerts = [
         'mr' => 'नवीन अपडेट: सर्व शाळा प्रकल्पांसाठी जिओ-टॅग केलेले फोटो अपलोड करणे अनिवार्य आहे.'
     ],
     [
-        'en' => 'Alert: The list of pending/delayed projects is available on the CEO Dashboard.',
-        'mr' => 'अलर्ट: प्रलंबित/विलंब झालेल्या प्रकल्पांची यादी मुख्य कार्यकारी अधिकारी (CEO) डॅशबोर्डवर उपलब्ध आहे.'
+        'en' => 'Alert: The list of pending/delayed projects is available on the Dashboard.',
+        'mr' => 'अलर्ट: प्रलंबित/विलंब झालेल्या प्रकल्पांची यादी डॅशबोर्डवर उपलब्ध आहे.'
     ],
     [
         'en' => 'Notice: Please submit the financial Utilization Certificate (UC) for ongoing works immediately.',
@@ -80,7 +96,6 @@ $galleryImages = [
         'title_mr' => 'वर्गखोली बांधकाम कार्य',
         'stage_en' => 'Completed (100%)',
         'stage_mr' => 'पूर्ण (१००%)',
-        'badge_class' => 'badge-faint-blue',
         'url' => 'https://images.unsplash.com/photo-1580582932707-520aed937b7b?auto=format&fit=crop&w=800&q=80'
     ],
     [
@@ -88,7 +103,6 @@ $galleryImages = [
         'title_mr' => 'शाळा स्वच्छतागृह सुविधा',
         'stage_en' => 'Pending (20%)',
         'stage_mr' => 'प्रलंबित (२०%)',
-        'badge_class' => 'badge-faint-orange',
         'url' => 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&w=800&q=80'
     ],
     [
@@ -96,7 +110,6 @@ $galleryImages = [
         'title_mr' => 'शाळा मैदान आणि पायाभूत सुविधा',
         'stage_en' => 'Completed (100%)',
         'stage_mr' => 'पूर्ण (१००%)',
-        'badge_class' => 'badge-faint-blue',
         'url' => 'https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=format&fit=crop&w=800&q=80'
     ]
 ];
@@ -114,11 +127,7 @@ $heroBgUrl = 'https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=
     <style>
         :root {
             --faint-orange: #f4a261;
-            --faint-orange-light: #fdf0ed;
-            --faint-orange-hover: #e76f51;
             --faint-blue: #5b8fb9;
-            --faint-blue-light: #e8f1f5;
-            --faint-blue-dark: #3b6070;
             --text-dark: #2c3e50;
         }
         body {
@@ -136,54 +145,28 @@ $heroBgUrl = 'https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=
             background: #ffffff;
             box-shadow: 0 5px 18px rgba(0,0,0,0.08);
         }
-        .navbar-brand {
-            font-weight: 700;
-            font-size: 1.35rem;
-        }
-        .navbar-light .nav-link {
-            color: rgba(0,0,0,0.72);
-        }
-        .navbar-light .nav-link:hover,
-        .navbar-light .nav-link.active {
-            color: #000000;
-        }
-        .btn-faint-blue {
-            background-color: var(--faint-blue);
-            color: #ffffff;
-        }
-        .btn-faint-orange {
-            background-color: var(--faint-orange);
-            color: #ffffff;
-        }
+        .navbar-brand { font-weight: 700; font-size: 1.35rem; }
+        .btn-faint-blue { background-color: var(--faint-blue); color: #ffffff; }
+        .btn-faint-blue:hover { background-color: #4a779a; color: #ffffff; }
+        .btn-faint-orange { background-color: var(--faint-orange); color: #ffffff; }
+        .btn-faint-orange:hover { background-color: #e76f51; color: #ffffff; }
         .hero-section {
             background: linear-gradient(180deg, rgba(91,143,185,0.84), rgba(244,162,97,0.72)), url('<?= htmlspecialchars($heroBgUrl); ?>') center/cover no-repeat;
             color: #ffffff;
             padding: 100px 0 80px;
             text-align: center;
         }
-        .gallery-img {
-            min-height: 220px;
-            object-fit: cover;
-        }
-        #cameraStream,
-        #capturedPreview {
+        .gallery-img { min-height: 220px; object-fit: cover; }
+        #cameraStream, #capturedPreview {
             width: 100%;
             border-radius: 10px;
             display: none;
+            margin-top: 10px;
         }
-        #cameraStream {
-            background: #000;
-        }
-        #capturedCanvas {
-            display: none;
-        }
-        .data-card {
-            border: 1px solid #e6eef6;
-        }
-        html {
-            scroll-behavior: smooth;
-            scroll-padding-top: 120px;
-        }
+        #cameraStream { background: #000; }
+        #capturedCanvas { display: none; }
+        .data-card { border: 1px solid #e6eef6; }
+        html { scroll-behavior: smooth; scroll-padding-top: 120px; }
     </style>
 </head>
 <body>
@@ -207,15 +190,14 @@ $heroBgUrl = 'https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=
                                 <i class="fa-solid fa-camera me-1"></i><span data-en="Upload Photo" data-mr="फोटो अपलोड करा">Upload Photo</span>
                             </button>
                         </li>
-                        <!-- Language Toggle Button in Header -->
                         <li class="nav-item ms-2">
                             <button id="langToggleBtn" class="btn btn-outline-primary btn-sm fw-bold" onclick="toggleLanguage()">
                                 <i class="fa-solid fa-globe me-1"></i><span id="langBtnText">मराठी</span>
                             </button>
                         </li>
                         <li class="nav-item ms-2">
-                            <a class="btn btn-light btn-sm border" href="login.php">
-                                <i class="fa-solid fa-right-to-bracket me-1"></i><span data-en="Login" data-mr="लॉगिन">Login</span>
+                            <a class="btn btn-light btn-sm border" href="financial_tracking.php">
+                                <i class="fa-solid fa-right-to-bracket me-1"></i><span data-en="Dashboard" data-mr="डॅशबोर्ड">Dashboard</span>
                             </a>
                         </li>
                     </ul>
@@ -224,6 +206,7 @@ $heroBgUrl = 'https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=
         </nav>
     </div>
 
+    <!-- Hero Section -->
     <section id="home" class="hero-section">
         <div class="container">
             <h1 class="display-5 fw-bold" data-en="Kolhapur ZP School Infrastructure Tracking System" data-mr="कोल्हापूर जिल्हा परिषद शाळा पायाभूत सुविधा ट्रॅकिंग प्रणाली">Kolhapur ZP School Infrastructure Tracking System</h1>
@@ -233,6 +216,22 @@ $heroBgUrl = 'https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=
         </div>
     </section>
 
+    <section class="py-4">
+        <div class="container">
+            <div class="row g-3">
+                <?php foreach ($alerts as $alert): ?>
+                    <div class="col-12">
+                        <div class="alert alert-info mb-0" role="alert">
+                            <strong data-en="Announcement" data-mr="अधिकृत सूचना">Announcement</strong>
+                            <span class="d-block mt-1" data-en="<?= htmlspecialchars($alert['en']); ?>" data-mr="<?= htmlspecialchars($alert['mr']); ?>"><?= htmlspecialchars($alert['en']); ?></span>
+                        </div>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+        </div>
+    </section>
+
+    <!-- About Section -->
     <section id="about" class="py-5">
         <div class="container">
             <div class="text-center mb-5">
@@ -268,6 +267,7 @@ $heroBgUrl = 'https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=
         </div>
     </section>
 
+    <!-- Gallery Section -->
     <section id="gallery" class="py-5 bg-white">
         <div class="container">
             <div class="text-center mb-5">
@@ -305,10 +305,11 @@ $heroBgUrl = 'https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=
         </div>
     </footer>
 
+    <!-- Upload Photo Modal -->
     <div class="modal fade" id="uploadPhotoModal" tabindex="-1" aria-labelledby="uploadPhotoModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered modal-lg">
             <div class="modal-content">
-                <div class="modal-header bg-faint-blue text-white">
+                <div class="modal-header btn-faint-blue text-white">
                     <h5 class="modal-title" id="uploadPhotoModalLabel" data-en="Upload Project Photo" data-mr="प्रकल्प फोटो अपलोड करा">Upload Project Photo</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
@@ -326,8 +327,8 @@ $heroBgUrl = 'https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=
                         <div class="col-md-6">
                             <label class="form-label" data-en="Capture from Camera" data-mr="कॅमेराद्वारे कॅप्चर करा">Capture from Camera</label>
                             <div class="d-grid gap-2">
-                                <button type="button" class="btn btn-outline-faint-blue" onclick="startCamera()" data-en="Start Camera" data-mr="कॅमेरा सुरू करा">Start Camera</button>
-                                <button type="button" id="captureBtn" class="btn btn-faint-orange" onclick="capturePhoto()" disabled data-en="Capture Photo" data-mr="फोटो कॅप्चर करा">Capture Photo</button>
+                                <button type="button" class="btn btn-outline-primary btn-sm" onclick="startCamera()" data-en="Start Camera" data-mr="कॅमेरा सुरू करा">Start Camera</button>
+                                <button type="button" id="captureBtn" class="btn btn-faint-orange btn-sm" onclick="capturePhoto()" disabled data-en="Capture Photo" data-mr="फोटो कॅप्चर करा">Capture Photo</button>
                             </div>
                         </div>
                         <div class="col-12">
@@ -353,11 +354,11 @@ $heroBgUrl = 'https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         let currentLang = 'en';
+        let mediaStream = null;
 
+        // --- Language Switcher ---
         function setLanguage(lang) {
             currentLang = lang;
-            
-            // 1. Update text for all elements carrying translation attributes
             document.querySelectorAll('[data-en][data-mr]').forEach(el => {
                 const text = el.getAttribute(lang === 'mr' ? 'data-mr' : 'data-en');
                 if (text) {
@@ -370,34 +371,122 @@ $heroBgUrl = 'https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=
                 }
             });
 
-            // 2. Update Document Title
             const titleEl = document.querySelector('title');
             if (titleEl) {
                 const titleText = titleEl.getAttribute(lang === 'mr' ? 'data-mr' : 'data-en');
-                if (titleText) {
-                    document.title = titleText;
-                }
+                if (titleText) document.title = titleText;
             }
 
-            // 3. Update Toggle Button Text
             const langBtnText = document.getElementById('langBtnText');
             if (langBtnText) {
                 langBtnText.textContent = lang === 'en' ? 'मराठी' : 'English';
             }
 
-            // Save preference to localStorage
             localStorage.setItem('portal_lang', lang);
         }
 
         function toggleLanguage() {
-            const newLang = currentLang === 'en' ? 'mr' : 'en';
-            setLanguage(newLang);
+            setLanguage(currentLang === 'en' ? 'mr' : 'en');
         }
 
-        // Initialize language state on page load
+        // --- Camera Handling ---
+        async function startCamera() {
+            const video = document.getElementById('cameraStream');
+            const captureBtn = document.getElementById('captureBtn');
+            try {
+                mediaStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+                video.srcObject = mediaStream;
+                video.style.display = 'block';
+                captureBtn.disabled = false;
+            } catch (err) {
+                alert('Unable to access camera: ' + err.message);
+            }
+        }
+
+        function capturePhoto() {
+            const video = document.getElementById('cameraStream');
+            const canvas = document.getElementById('capturedCanvas');
+            const preview = document.getElementById('capturedPreview');
+            const hiddenInput = document.getElementById('captured_image');
+
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const context = canvas.getContext('2d');
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            const dataUrl = canvas.toDataURL('image/jpeg');
+            hiddenInput.value = dataUrl;
+            preview.src = dataUrl;
+            preview.style.display = 'block';
+
+            // Stop camera stream after capture
+            if (mediaStream) {
+                mediaStream.getTracks().forEach(track => track.stop());
+            }
+            video.style.display = 'none';
+        }
+
         document.addEventListener('DOMContentLoaded', () => {
             const savedLang = localStorage.getItem('portal_lang') || 'en';
             setLanguage(savedLang);
+        });
+    </script>
+</body>
+</html>
+<?php
+require_once __DIR__ . '/../index.php';
+?>
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const imageData = canvas.toDataURL('image/jpeg', 0.92);
+            hiddenInput.value = imageData;
+            preview.src = imageData;
+            preview.style.display = 'block';
+            stopCamera();
+        }
+
+        function stopCamera() {
+            if (currentStream) {
+                currentStream.getTracks().forEach(track => track.stop());
+                currentStream = null;
+            }
+            const video = document.getElementById('cameraStream');
+            const captureBtn = document.getElementById('captureBtn');
+            if (video) {
+                video.pause();
+                video.srcObject = null;
+                video.style.display = 'none';
+            }
+            if (captureBtn) {
+                captureBtn.disabled = true;
+            }
+        }
+
+        function previewSelectedFile() {
+            const fileInput = document.getElementById('photoFile');
+            const preview = document.getElementById('capturedPreview');
+            const hiddenInput = document.getElementById('captured_image');
+            if (fileInput.files ; fileInput.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    preview.src = event.target.result;
+                    preview.style.display = 'block';
+                    hiddenInput.value = '';
+                };
+                reader.readAsDataURL(fileInput.files[0]);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            setLanguage(localStorage.getItem('portalLanguage') ; 'en');
+            const fileInput = document.getElementById('photoFile');
+            if (fileInput) {
+                fileInput.addEventListener('change', previewSelectedFile);
+            }
+            const uploadModal = document.getElementById('uploadPhotoModal');
+            if (uploadModal) {
+                uploadModal.addEventListener('hidden.bs.modal', stopCamera);
+            }
         });
     </script>
 </body>

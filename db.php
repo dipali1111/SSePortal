@@ -1,15 +1,17 @@
 <?php
 $servername = "localhost";
-$username = "root";
-$password = "";
-$dbname = "sseportal_db"; // Make sure this matches your database name
+$username   = "root";
+$password   = "";
+$dbname     = "sseportal_db"; // Make sure this matches your database name
 
-$conn = new mysqli($servername, $username, $password, $dbname);
+// 1. Initialize mysqli object
+$conn = mysqli_init();
 
-// Enable connection timeout handling
+// 2. Set connection timeout option BEFORE connecting
 $conn->options(MYSQLI_OPT_CONNECT_TIMEOUT, 10);
 
-if ($conn->connect_error) {
-    die("Connection failed: " . $conn->connect_error);
+// 3. Establish the connection
+if (!$conn->real_connect($servername, $username, $password, $dbname)) {
+    die("Connection failed: " . mysqli_connect_error());
 }
 ?>

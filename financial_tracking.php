@@ -151,8 +151,9 @@ $expenses = $conn->query("SELECT * FROM expenses ORDER BY expense_date DESC");
 
     <style>
         * { box-sizing: border-box; transition: all 0.2s ease; }
-        body { font-family: 'Poppins', sans-serif; margin: 0; padding: 30px; background: #f1f5f9; color: #1e293b; min-height: 100vh; }
-        .dashboard-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; flex-wrap: wrap; gap: 15px; }
+        body { font-family: 'Poppins', sans-serif; margin: 0; padding: 0; background: #f1f5f9; color: #1e293b; min-height: 100vh; }
+        .page-shell { min-height: 100vh; display: flex; flex-direction: column; }
+        .dashboard-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; flex-wrap: wrap; gap: 15px; position: sticky; top: 0; z-index: 1000; background: #f1f5f9; padding: 20px 30px 10px; border-bottom: 1px solid #e2e8f0; box-shadow: 0 4px 10px rgba(15, 23, 42, 0.05); }
         .dashboard-title { font-size: 1.6rem; font-weight: 700; color: #0f172a; margin: 0; }
         .role-badge { background: #e2e8f0; padding: 6px 14px; border-radius: 8px; font-size: 0.85rem; color: #334155; font-weight: 500; }
         .btn { padding: 8px 16px; border-radius: 8px; font-weight: 600; cursor: pointer; border: none; text-decoration: none; display: inline-block; font-size: 0.85rem; }
@@ -195,7 +196,7 @@ $expenses = $conn->query("SELECT * FROM expenses ORDER BY expense_date DESC");
 </head>
 <body>
 
-    <main style="width: 100%;">
+    <div class="page-shell">
         <div class="dashboard-header">
             <h2 class="dashboard-title">💳 Fund Utilization & Governance (निधी वापर व व्यवस्थापन)</h2>
             <div style="display:flex; align-items:center; gap:10px;">
@@ -205,6 +206,8 @@ $expenses = $conn->query("SELECT * FROM expenses ORDER BY expense_date DESC");
                 <button class="btn btn-export" onclick="exportToCSV()">📥 Export CSV</button>
             </div>
         </div>
+
+        <main style="width: 100%; padding: 0 30px 30px; flex: 1;">
 
         <!-- Summary Cards -->
         <div class="cards">
@@ -411,9 +414,10 @@ $expenses = $conn->query("SELECT * FROM expenses ORDER BY expense_date DESC");
     </div>
 
     <!-- Bottom Footer -->
-    <footer style="background: #ffffff; border-top: 1px solid #e2e8f0; padding: 15px 30px; text-align: center; font-size: 0.8rem; color: #64748b; margin-top: 20px;">
+    <footer style="background: #ffffff; border-top: 1px solid #e2e8f0; padding: 15px 30px; text-align: center; font-size: 0.8rem; color: #64748b; position: sticky; bottom: 0; z-index: 999; box-shadow: 0 -2px 10px rgba(15, 23, 42, 0.05);">
         &copy; <?php echo date('Y'); ?> Samruddh Shala E-Portal • Zilla Parishad School Governance System
     </footer>
+    </div>
 
     <script>
         function toggleRecurringFreq(checkbox) {

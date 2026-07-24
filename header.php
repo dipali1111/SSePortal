@@ -22,10 +22,10 @@ $user_dept = $_SESSION['user_dept'] ?? 'School Infrastructure';
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Poppins', sans-serif; }
         body { background-color: #f0f4f9; color: #1e293b; display: flex; min-height: 100vh; }
 
-        .main-wrapper { flex: 1; display: flex; flex-direction: column; overflow-x: hidden; }
+        .main-wrapper { flex: 1; display: flex; flex-direction: column; min-height: 100vh; overflow-x: hidden; }
 
         /* Top Header Navigation Bar */
-        .top-header { background: #ffffff; height: 70px; padding: 0 30px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e2e8f0; }
+        .top-header { background: #ffffff; height: 70px; padding: 0 30px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e2e8f0; position: sticky; top: 0; z-index: 1000; box-shadow: 0 2px 10px rgba(15, 23, 42, 0.05); }
         .top-header h1 { font-size: 1.3rem; font-weight: 700; color: #0f172a; }
 
         .header-actions { display: flex; align-items: center; gap: 20px; }
@@ -68,4 +68,4 @@ $user_dept = $_SESSION['user_dept'] ?? 'School Infrastructure';
         </header>
 
         <!-- Dynamic Content Body Starts Here -->
-        <main class="page-content">
+        <main class="page-content" style="padding-top: 30px;">

@@ -1,0 +1,22 @@
+<?php
+return [
+  'app_name' => 'कोल्हापूर शाळा डॅशबोर्ड',
+  'tagline' => 'कामांच्या मुदतींचा मागोवा घ्या, प्रगती तपासा, अडथळे सोडवा',
+  'login' => 'लॉगिन', 'logout' => 'बाहेर पडा', 'username' => 'वापरकर्ता नाव', 'password' => 'पासवर्ड',
+  'role' => 'भूमिका', 'hm' => 'मुख्याध्यापक', 'ceo' => 'सीईओ', 'admin' => 'प्रशासक',
+  'dashboard' => 'डॅशबोर्ड', 'ceo_dashboard' => 'सीईओ आढावा',
+  'taluka' => 'तालुका', 'school' => 'शाळा', 'all_talukas' => 'सर्व तालुके', 'all_schools' => 'सर्व शाळा',
+  'works' => 'नियुक्त कामे', 'add_work' => 'नवीन काम जोडा', 'title' => 'शीर्षक', 'description' => 'तपशील',
+  'deadline' => 'अंतिम मुदत', 'status' => 'स्थिती', 'progress' => 'प्रगती',
+  'pending' => 'प्रलंबित', 'in_progress' => 'सुरू आहे', 'completed' => 'पूर्ण', 'overdue' => 'मुदत उलटलेली',
+  'upload_photo' => 'प्रगती फोटो अपलोड करा', 'update_progress' => 'प्रगती अद्ययावत करा',
+  'blockers' => 'अडथळे', 'report_blocker' => 'अडथळा नोंदवा', 'suggested_solution' => 'सुचवलेला उपाय',
+  'alerts' => 'सूचना', 'no_alerts' => 'कोणतीही सूचना नाही', 'view' => 'पहा', 'submit' => 'सबमिट',
+  'photo' => 'फोटो', 'notes' => 'टिपा', 'created' => 'तयार केले', 'assigned_by' => 'नियुक्त केले',
+  'total_works' => 'एकूण कामे', 'active_blockers' => 'सक्रिय अडथळे', 'overdue_works' => 'मुदत उलटलेली',
+  'welcome' => 'स्वागत आहे', 'language' => 'भाषा',
+  'resolve' => 'सोडवा', 'resolved' => 'सोडवले',
+  'select_school' => 'शाळा निवडा', 'select_taluka' => 'तालुका निवडा',
+  'progress_verified' => 'फोटो व टिपांद्वारे प्रगती सत्यापित',
+  'kolhapur_schools' => 'कोल्हापूर जिल्हा शाळा',
+];

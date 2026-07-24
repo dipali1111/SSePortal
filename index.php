@@ -1,458 +1,280 @@
-<?php
-require_once __DIR__ . '/config/db.php';
-$error = '';
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-  $u = trim($_POST['username'] ?? '');
-  $p = $_POST['password'] ?? '';
-  $stmt = $conn->prepare('SELECT * FROM users WHERE username=?');
-  $stmt->bind_param('s', $u);
-  $stmt->execute();
-  $user = $stmt->get_result()->fetch_assoc();
-  // Accept either password_verify OR plain "password123" fallback since seed hash may vary across MySQL setups
-  if ($user && (password_verify($p, $user['password']) || $p === 'password123')) {
-    unset($user['password']);
-    $_SESSION['user'] = $user;
-    header('Location: ' . ($user['role']==='ceo' ? 'ceo.php' : 'dashboard.php'));
-    exit;
-  }
-  $error = 'Invalid credentials';
-}
-if (!empty($_SESSION['user'])) {
-  header('Location: ' . ($_SESSION['user']['role']==='ceo' ? 'ceo.php' : 'dashboard.php'));
-  exit;
-}
-include __DIR__ . '/includes/header.php';
-?>
-<div class="row justify-content-center align-items-center" style="min-height:70vh">
-  <div class="col-md-5">
-    <div class="hero text-center">
-      <h1 class="fw-bold" style="font-size:2.2rem"><?= t('app_name') ?></h1>
-      <p class="mb-0"><?= t('tagline') ?></p>
-    </div>
-    <div class="card-fx p-4">
-      <h4 class="mb-3"><i class="bi bi-shield-lock"></i> <?= t('login') ?></h4>
-      <?php if ($error): ?><div class="alert-fx p-2 mb-3"><?= htmlspecialchars($error) ?></div><?php endif; ?>
-      <form method="post">
-        <div class="mb-3">
-          <label><?= t('username') ?></label>
-          <input class="form-control" name="username" required>
-        </div>
-        <div class="mb-3">
-          <label><?= t('password') ?></label>
-          <input class="form-control" type="password" name="password" required>
-        </div>
-        <button class="btn btn-glow w-100"><?= t('login') ?></button>
-      </form>
-      <hr class="border-warning">
-      <small class="text-white-50">
-        Demo accounts (password: <code>password123</code>):<br>
-        <b>ceo</b> / <b>hm_karvir</b> / <b>hm_hatkanangale</b> / <b>hm_shirol</b>
-      </small>
-    </div>
-  </div>
-</div>
-<?php include __DIR__ . '/includes/footer.php'; ?>
-<?php
-/**
- * Samruddha Shala E-Portal
- * Landing page for bilingual toggle, gallery upload, live camera capture, and login.
- */
-
-$uploadDir = realpath(__DIR__ . '/../uploads') ?: __DIR__ . '/../uploads';
-if (!is_dir($uploadDir)) {
-    mkdir($uploadDir, 0755, true);
-}
-
-$uploadMessage = '';
-$uploadError = '';
-
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['upload_photo'])) {
-    $capturedData = trim($_POST['captured_image'] ?? '');
-    $projectNotes = trim($_POST['project_notes'] ?? '');
-
-    if ($capturedData !== '') {
-        if (preg_match('/^data:image\/(png|jpeg|jpg|webp);base64,/', $capturedData, $matches)) {
-            $type = strtolower($matches[1]);
-            $data = substr($capturedData, strpos($capturedData, ',') + 1);
-            $decoded = base64_decode($data);
-            if ($decoded === false) {
-                $uploadError = 'Unable to decode captured image. Please try again.';
-            } else {
-                $filename = sprintf('captured_%s.%s', date('YmdHis'), $type === 'jpeg' ? 'jpg' : $type);
-                $destination = $uploadDir . DIRECTORY_SEPARATOR . $filename;
-                if (file_put_contents($destination, $decoded) !== false) {
-                    $uploadMessage = 'Captured photo uploaded successfully.';
-                } else {
-                    $uploadError = 'Failed to save captured photo. Check folder permissions.';
-                }
-            }
-        } else {
-            $uploadError = 'Captured image format is not supported.';
-        }
-    } elseif (!empty($_FILES['photoFile']['name'])) {
-        $file = $_FILES['photoFile'];
-        if ($file['error'] !== UPLOAD_ERR_OK) {
-            $uploadError = 'File upload error. Please try again.';
-        } else {
-            $allowedExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
-            $extension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
-            if (!in_array($extension, $allowedExtensions, true)) {
-                $uploadError = 'Invalid file type. Please upload a JPG, PNG, GIF, or WEBP image.';
-            } else {
-                $filename = sprintf('gallery_%s.%s', date('YmdHis'), $extension);
-                $destination = $uploadDir . DIRECTORY_SEPARATOR . $filename;
-                if (move_uploaded_file($file['tmp_name'], $destination)) {
-                    $uploadMessage = 'Gallery photo uploaded successfully.';
-                } else {
-                    $uploadError = 'Failed to save uploaded file. Please check server permissions.';
-                }
-            }
-        }
-    } else {
-        $uploadError = 'Please select a file or capture a photo before uploading.';
-    }
-}
-
-$alerts = [
-    [
-        'en' => 'New Update: Uploading geo-tagged photos for all school projects is mandatory.',
-        'mr' => 'नवीन अपडेट: सर्व शाळा प्रकल्पांसाठी जिओ-टॅग केलेले फोटो अपलोड करणे अनिवार्य आहे.'
-    ],
-    [
-        'en' => 'Alert: The list of pending/delayed projects is available on the CEO Dashboard.',
-        'mr' => 'अलर्ट: प्रलंबित/विलंब झालेल्या प्रकल्पांची यादी मुख्य कार्यकारी अधिकारी (CEO) डॅशबोर्डवर उपलब्ध आहे.'
-    ],
-    [
-        'en' => 'Notice: Please submit the financial Utilization Certificate (UC) for ongoing works immediately.',
-        'mr' => 'सूचना: चालू असलेल्या कामांसाठी कृपया आर्थिक उपयुक्तता प्रमाणपत्र (UC) त्वरित सादर करा.'
-    ]
-];
-
-$galleryImages = [
-    [
-        'title_en' => 'Classroom Construction Works',
-        'title_mr' => 'वर्गखोली बांधकाम कार्य',
-        'stage_en' => 'Completed (100%)',
-        'stage_mr' => 'पूर्ण (१००%)',
-        'badge_class' => 'badge-faint-blue',
-        'url' => 'https://images.unsplash.com/photo-1580582932707-520aed937b7b?auto=format&fit=crop&w=800&q=80'
-    ],
-    [
-        'title_en' => 'School Sanitation Facility',
-        'title_mr' => 'शाळा स्वच्छतागृह सुविधा',
-        'stage_en' => 'Pending (20%)',
-        'stage_mr' => 'प्रलंबित (२०%)',
-        'badge_class' => 'badge-faint-orange',
-        'url' => 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&w=800&q=80'
-    ],
-    [
-        'title_en' => 'School Grounds & Infrastructure',
-        'title_mr' => 'शाळा मैदान आणि पायाभूत सुविधा',
-        'stage_en' => 'Completed (100%)',
-        'stage_mr' => 'पूर्ण (१००%)',
-        'badge_class' => 'badge-faint-blue',
-        'url' => 'https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=format&fit=crop&w=800&q=80'
-    ]
-];
-
-$heroBgUrl = 'https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=format&fit=crop&w=1600&q=80';
-?>
+<?php require_once __DIR__ . '/includes/db.php'; get_db(); // ensures DB exists/seeded ?>
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" id="htmlRoot">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title data-en="Samruddha Shala E-Portal | Integrated Tracking System" data-mr="समृद्ध शाळा ई-पोर्टल | एकात्मिक मागोवा प्रणाली">Samruddha Shala E-Portal | Integrated Tracking System</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <style>
-        :root {
-            --faint-orange: #f4a261;
-            --faint-orange-light: #fdf0ed;
-            --faint-orange-hover: #e76f51;
-            --faint-blue: #5b8fb9;
-            --faint-blue-light: #e8f1f5;
-            --faint-blue-dark: #3b6070;
-            --text-dark: #2c3e50;
-        }
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #f7fbff;
-            color: var(--text-dark);
-            padding-top: 110px;
-        }
-        .fixed-header-wrapper {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            z-index: 1050;
-            background: #ffffff;
-            box-shadow: 0 5px 18px rgba(0,0,0,0.08);
-        }
-        .navbar-brand {
-            font-weight: 700;
-            font-size: 1.35rem;
-        }
-        .navbar-light .nav-link {
-            color: rgba(0,0,0,0.72);
-        }
-        .navbar-light .nav-link:hover,
-        .navbar-light .nav-link.active {
-            color: #000000;
-        }
-        .btn-faint-blue {
-            background-color: var(--faint-blue);
-            color: #ffffff;
-        }
-        .btn-faint-orange {
-            background-color: var(--faint-orange);
-            color: #ffffff;
-        }
-        .hero-section {
-            background: linear-gradient(180deg, rgba(91,143,185,0.84), rgba(244,162,97,0.72)), url('<?= htmlspecialchars($heroBgUrl); ?>') center/cover no-repeat;
-            color: #ffffff;
-            padding: 100px 0 80px;
-            text-align: center;
-        }
-        .gallery-img {
-            min-height: 220px;
-            object-fit: cover;
-        }
-        #cameraStream,
-        #capturedPreview {
-            width: 100%;
-            border-radius: 10px;
-            display: none;
-        }
-        #cameraStream {
-            background: #000;
-        }
-        #capturedCanvas {
-            display: none;
-        }
-        .data-card {
-            border: 1px solid #e6eef6;
-        }
-        html {
-            scroll-behavior: smooth;
-            scroll-padding-top: 120px;
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title data-en="Notification Center — Sumruddha Sala E-Portal" data-mr="सूचना केंद्र — समृद्ध शाळा ई-पोर्टल">Notification Center — Sumruddha Sala E-Portal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800&family=Inter:wght@400;500;600;700&family=Noto+Sans+Devanagari:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/style.css">
+<style>
+  /* Marathi text uses Devanagari font; no colours/layout touched */
+  html[data-lang="mr"] body { font-family: 'Noto Sans Devanagari', 'Poppins', 'Inter', sans-serif; }
+  .lang-toggle{display:flex;align-items:center;gap:2px;background:var(--panel,#f1f1f4);border-radius:8px;padding:2px;}
+  .lang-toggle button{border:none;background:transparent;padding:6px 12px;font-size:12.5px;font-weight:700;border-radius:6px;cursor:pointer;color:inherit;}
+  .lang-toggle button.active{background:var(--brand,#4f46e5);color:#fff;}
+</style>
 </head>
 <body>
-    <div class="fixed-header-wrapper">
-        <nav class="navbar navbar-expand-lg navbar-light bg-white">
-            <div class="container">
-                <a class="navbar-brand d-flex align-items-center" href="#home">
-                    <i class="fa-solid fa-school me-2" style="color: var(--faint-blue);"></i>
-                    <span data-en="Samruddha Shala E-Portal" data-mr="समृद्ध शाळा ई-पोर्टल">Samruddha Shala E-Portal</span>
-                </a>
-                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                    <span class="navbar-toggler-icon"></span>
-                </button>
-                <div class="collapse navbar-collapse" id="navbarNav">
-                    <ul class="navbar-nav ms-auto align-items-center">
-                        <li class="nav-item"><a class="nav-link active" href="#home" data-en="Home" data-mr="मुख्य पृष्ठ">Home</a></li>
-                        <li class="nav-item"><a class="nav-link" href="#about" data-en="About" data-mr="माहिती">About</a></li>
-                        <li class="nav-item"><a class="nav-link" href="#gallery" data-en="Gallery" data-mr="गॅलरी">Gallery</a></li>
-                        <li class="nav-item ms-2">
-                            <button class="btn btn-faint-blue btn-sm" data-bs-toggle="modal" data-bs-target="#uploadPhotoModal">
-                                <i class="fa-solid fa-camera me-1"></i><span data-en="Upload Photo" data-mr="फोटो अपलोड करा">Upload Photo</span>
-                            </button>
-                        </li>
-                        <!-- Language Toggle Button in Header -->
-                        <li class="nav-item ms-2">
-                            <button id="langToggleBtn" class="btn btn-outline-primary btn-sm fw-bold" onclick="toggleLanguage()">
-                                <i class="fa-solid fa-globe me-1"></i><span id="langBtnText">मराठी</span>
-                            </button>
-                        </li>
-                        <li class="nav-item ms-2">
-                            <a class="btn btn-light btn-sm border" href="login.php">
-                                <i class="fa-solid fa-right-to-bracket me-1"></i><span data-en="Login" data-mr="लॉगिन">Login</span>
-                            </a>
-                        </li>
-                    </ul>
-                </div>
-            </div>
-        </nav>
+<div class="app">
+
+  <!-- ===== Header ===== -->
+  <div class="topbar">
+    <div class="topbar-title">
+      <div class="bell-badge">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        <span class="live-dot"></span>
+      </div>
+      <div>
+        <h1 data-en="Notification Center" data-mr="सूचना केंद्र">Notification Center</h1>
+        <p data-en="Monitor project activities, pending updates, delays, and important system alerts across all schools." data-mr="सर्व शाळांमधील प्रकल्प कार्यवाही, प्रलंबित अद्यतने, विलंब आणि महत्त्वाचे प्रणाली इशारे यांचे निरीक्षण करा.">Monitor project activities, pending updates, delays, and important system alerts across all schools.</p>
+      </div>
+    </div>
+    <div class="topbar-actions">
+      <div class="lang-toggle" id="langToggle" role="group" aria-label="Language switch">
+        <button type="button" class="active" data-lang="en">EN</button>
+        <button type="button" data-lang="mr">मराठी</button>
+      </div>
+      <div class="search-box">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        <input id="searchInput" type="text" data-en-placeholder="Search notifications..." data-mr-placeholder="सूचना शोधा..." placeholder="Search notifications...">
+      </div>
+      <button class="btn btn-ghost" id="filterToggleBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M7 12h10M10 18h4"/></svg>
+        <span data-en="Filter" data-mr="गाळणी">Filter</span>
+      </button>
+      <button class="btn btn-ghost" id="markAllBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 7 17l-5-5"/><path d="m22 10-7.5 7.5L13 16"/></svg>
+        <span data-en="Mark All as Read" data-mr="सर्व वाचले म्हणून चिन्हांकित करा">Mark All as Read</span>
+      </button>
+      <button class="btn btn-ghost" id="exportBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0-4-4m4 4 4-4"/><path d="M4 17v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg>
+        <span data-en="Export Alerts" data-mr="इशारे निर्यात करा">Export Alerts</span>
+      </button>
+      <button class="btn btn-icon btn-ghost" id="settingsBtn" aria-label="Notification settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1.04 1.56V21a2 2 0 0 1-4 0v-.09A1.7 1.7 0 0 0 8.96 19a1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.56-1.04H3a2 2 0 0 1 0-4h.09A1.7 1.7 0 0 0 4.6 8.6a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34H9a1.7 1.7 0 0 0 1.04-1.56V3a2 2 0 0 1 4 0v.09A1.7 1.7 0 0 0 15.4 4.6a1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87V9a1.7 1.7 0 0 0 1.56 1.04H21a2 2 0 0 1 0 4h-.09A1.7 1.7 0 0 0 19.4 15Z"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- ===== Summary cards ===== -->
+  <div class="stats-grid" id="statsGrid">
+    <div class="stat-card total">
+      <div class="stat-top">
+        <div class="stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></div>
+      </div>
+      <p class="stat-count" data-count="0" id="statTotal">0</p>
+      <p class="stat-label" data-en="Total Notifications" data-mr="एकूण सूचना">Total Notifications</p>
+    </div>
+    <div class="stat-card critical">
+      <div class="stat-top">
+        <div class="stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4m0 4h.01M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/></svg></div>
+      </div>
+      <p class="stat-count" data-count="0" id="statCritical">0</p>
+      <p class="stat-label" data-en="Critical Alerts" data-mr="गंभीर इशारे">Critical Alerts</p>
+    </div>
+    <div class="stat-card pending">
+      <div class="stat-top">
+        <div class="stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg></div>
+      </div>
+      <p class="stat-count" data-count="0" id="statPending">0</p>
+      <p class="stat-label" data-en="Pending Updates" data-mr="प्रलंबित अद्यतने">Pending Updates</p>
+    </div>
+    <div class="stat-card resolved">
+      <div class="stat-top">
+        <div class="stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m22 4-10 10.01-3-3"/></svg></div>
+      </div>
+      <p class="stat-count" data-count="0" id="statResolved">0</p>
+      <p class="stat-label" data-en="Resolved Alerts" data-mr="निकाली इशारे">Resolved Alerts</p>
+    </div>
+  </div>
+
+  <!-- ===== Priority chips ===== -->
+  <div class="chip-row" id="chipRow">
+    <div class="chip" data-priority="success" style="--dot:var(--success)">
+      <span class="chip-dot"></span>
+      <div class="chip-body"><div class="chip-count" id="chipCompletedCount">0</div><div class="chip-label" data-en="Completed" data-mr="पूर्ण">Completed</div></div>
+      <span class="chip-pct" id="chipCompletedPct">0%</span>
+    </div>
+    <div class="chip" data-priority="pending" style="--dot:var(--warning)">
+      <span class="chip-dot"></span>
+      <div class="chip-body"><div class="chip-count" id="chipPendingCount">0</div><div class="chip-label" data-en="Pending" data-mr="प्रलंबित">Pending</div></div>
+      <span class="chip-pct" id="chipPendingPct">0%</span>
+    </div>
+    <div class="chip" data-priority="critical" style="--dot:var(--critical)">
+      <span class="chip-dot"></span>
+      <div class="chip-body"><div class="chip-count" id="chipDelayedCount">0</div><div class="chip-label" data-en="Delayed" data-mr="विलंबित">Delayed</div></div>
+      <span class="chip-pct" id="chipDelayedPct">0%</span>
+    </div>
+    <div class="chip" data-priority="info" style="--dot:var(--info)">
+      <span class="chip-dot"></span>
+      <div class="chip-body"><div class="chip-count" id="chipInfoCount">0</div><div class="chip-label" data-en="Information" data-mr="माहिती">Information</div></div>
+      <span class="chip-pct" id="chipInfoPct">0%</span>
+    </div>
+  </div>
+
+  <!-- ===== Main grid ===== -->
+  <div class="main-grid">
+
+    <!-- Left: feed -->
+    <div class="panel">
+      <div class="panel-header">
+        <h2>
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="9"/></svg>
+          <span data-en="Live Notification Feed" data-mr="थेट सूचना फीड">Live Notification Feed</span>
+        </h2>
+        <div class="panel-sub-actions">
+          <span style="font-size:11.5px;color:var(--ink-faint);font-weight:600;" id="feedCountLabel" data-en-suffix=" alerts" data-mr-suffix=" इशारे">— alerts</span>
+        </div>
+      </div>
+
+      <div class="filter-bar" id="filterBar">
+        <button class="filter-pill active" data-filter="all" data-en="All" data-mr="सर्व">All</button>
+        <button class="filter-pill" data-filter="critical" data-en="Critical" data-mr="गंभीर">Critical</button>
+        <button class="filter-pill" data-filter="pending" data-en="Pending" data-mr="प्रलंबित">Pending</button>
+        <button class="filter-pill" data-filter="info" data-en="Info" data-mr="माहिती">Info</button>
+        <button class="filter-pill" data-filter="success" data-en="Resolved" data-mr="निकाली">Resolved</button>
+      </div>
+
+      <div class="adv-filters" id="advFilters">
+        <select><option data-en="District" data-mr="जिल्हा">District</option><option selected>Kolhapur</option></select>
+        <select><option data-en="Taluka" data-mr="तालुका">Taluka</option><option>Karvir</option><option>Panhala</option><option>Shahuwadi</option><option>Hatkanangale</option><option>Shirol</option><option>Radhanagari</option><option>Gaganbawada</option><option>Bhudargad</option><option>Ajra</option><option>Gadhinglaj</option><option>Kagal</option><option>Chandgad</option></select>
+        <select><option data-en="Project Type" data-mr="प्रकल्पाचा प्रकार">Project Type</option><option data-en="Construction" data-mr="बांधकाम">Construction</option><option data-en="Non-Construction" data-mr="बिगर-बांधकाम">Non-Construction</option></select>
+        <select><option data-en="Funding Source" data-mr="निधी स्रोत">Funding Source</option><option data-en="Annual Plan" data-mr="वार्षिक योजना">Annual Plan</option><option data-en="Minor Mineral Fund" data-mr="गौण खनिज निधी">Minor Mineral Fund</option><option data-en="ZP Own Fund" data-mr="जिल्हा परिषद स्वनिधी">ZP Own Fund</option><option data-en="CSR Fund" data-mr="सीएसआर निधी">CSR Fund</option></select>
+        <select><option data-en="Priority" data-mr="प्राधान्य">Priority</option><option data-en="Critical" data-mr="गंभीर">Critical</option><option data-en="Pending" data-mr="प्रलंबित">Pending</option><option data-en="Info" data-mr="माहिती">Info</option><option data-en="Resolved" data-mr="निकाली">Resolved</option></select>
+        <select><option data-en="Status" data-mr="स्थिती">Status</option><option data-en="Open" data-mr="खुले">Open</option><option data-en="In Review" data-mr="पुनरावलोकनात">In Review</option><option data-en="Resolved" data-mr="निकाली">Resolved</option></select>
+        <input type="date">
+        <select><option data-en="Role" data-mr="भूमिका">Role</option><option data-en="CEO" data-mr="मुख्य कार्यकारी अधिकारी">CEO</option><option data-en="Sachiv" data-mr="सचिव">Sachiv</option><option data-en="HM" data-mr="मुख्याध्यापक">HM</option></select>
+      </div>
+
+      <div class="feed" id="feed"></div>
+
+      <div class="empty-state" id="emptyState">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/><circle cx="18" cy="6" r="4" fill="#fff"/><path d="m16.3 6 1.2 1.2L20 4.7" stroke="var(--success)"/></svg>
+        <h3 data-en="Everything is up to date!" data-mr="सर्व काही अद्ययावत आहे!">Everything is up to date!</h3>
+        <p data-en="No pending alerts or notifications." data-mr="कोणतेही प्रलंबित इशारे किंवा सूचना नाहीत.">No pending alerts or notifications.</p>
+        <button class="btn btn-primary" id="refreshBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>
+          <span data-en="Refresh Notifications" data-mr="सूचना रिफ्रेश करा">Refresh Notifications</span>
+        </button>
+      </div>
     </div>
 
-    <section id="home" class="hero-section">
-        <div class="container">
-            <h1 class="display-5 fw-bold" data-en="Kolhapur ZP School Infrastructure Tracking System" data-mr="कोल्हापूर जिल्हा परिषद शाळा पायाभूत सुविधा ट्रॅकिंग प्रणाली">Kolhapur ZP School Infrastructure Tracking System</h1>
-            <p class="lead mt-4 mb-4" data-en="Integrated Tracking and Management System for School Project Progress and Photo Uploads." data-mr="शाळा प्रकल्प प्रगती आणि फोटो अपलोडसाठी एकात्मिक ट्रॅकिंग आणि व्यवस्थापन प्रणाली.">Integrated Tracking and Management System for School Project Progress and Photo Uploads.</p>
-            <a href="#gallery" class="btn btn-faint-orange btn-lg me-2" data-en="View Gallery" data-mr="गॅलरी पहा">View Gallery</a>
-            <button class="btn btn-light btn-lg" data-bs-toggle="modal" data-bs-target="#uploadPhotoModal" data-en="Upload Photo" data-mr="फोटो अपलोड करा">Upload Photo</button>
-        </div>
-    </section>
+    <!-- Right: sidebar -->
+    <div class="sidebar">
 
-    <section id="about" class="py-5">
-        <div class="container">
-            <div class="text-center mb-5">
-                <h2 class="fw-bold" data-en="About the Portal" data-mr="पोर्टलबद्दल माहिती">About the Portal</h2>
-                <p class="text-muted" data-en="A portal for Kolhapur ZP school project monitoring, bilingual reporting, and geo-tagged photo upload." data-mr="कोल्हापूर ZP शाळा प्रकल्प देखरेख, द्विभाषिक अहवाल आणि जिओ-टॅग फोटो अपलोडसाठी पोर्टल.">A portal for Kolhapur ZP school project monitoring, bilingual reporting, and geo-tagged photo upload.</p>
-            </div>
-            <div class="row g-4">
-                <div class="col-md-4">
-                    <div class="card data-card shadow-sm h-100 p-4">
-                        <div class="card-body">
-                            <h5 class="fw-bold" data-en="Photo Upload" data-mr="फोटो अपलोड">Photo Upload</h5>
-                            <p class="text-muted" data-en="Upload images from the gallery or capture them live using a camera." data-mr="गॅलरीमधून प्रतिमा अपलोड करा किंवा कॅमेरा वापरून थेट टिपा.">Upload images from the gallery or capture them live using a camera.</p>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-4">
-                    <div class="card data-card shadow-sm h-100 p-4">
-                        <div class="card-body">
-                            <h5 class="fw-bold" data-en="Bilingual Support" data-mr="द्विभाषिक समर्थन">Bilingual Support</h5>
-                            <p class="text-muted" data-en="Toggle the portal interface between English and Marathi with one click." data-mr="एका क्लिकमध्ये पोर्टल इंटरफेस इंग्रजी आणि मराठी मध्ये बदल करा.">Toggle the portal interface between English and Marathi with one click.</p>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-4">
-                    <div class="card data-card shadow-sm h-100 p-4">
-                        <div class="card-body">
-                            <h5 class="fw-bold" data-en="Project Gallery" data-mr="प्रकल्प गॅलरी">Project Gallery</h5>
-                            <p class="text-muted" data-en="View featured progress photos for ongoing and completed school infrastructure works." data-mr="चालू आणि पूर्ण झालेल्या शाळा पायाभूत सुविधा कामांसाठी वैशिष्ट्यीकृत प्रगतीचे फोटो पहा.">View featured progress photos for ongoing and completed school infrastructure works.</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
+      <div class="side-panel">
+        <h3><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M18.7 8 13 13.7l-3-3-4.5 4.5"/></svg><span data-en="Smart Alert Analytics" data-mr="स्मार्ट इशारा विश्लेषण">Smart Alert Analytics</span></h3>
+        <div class="ring-grid" id="ringGrid"></div>
+        <p style="font-size:11px;color:var(--ink-faint);margin:14px 0 6px;font-weight:600;" data-en="WEEKLY COMPARISON" data-mr="साप्ताहिक तुलना">WEEKLY COMPARISON</p>
+        <div class="bar-chart" id="barChart"></div>
+      </div>
 
-    <section id="gallery" class="py-5 bg-white">
-        <div class="container">
-            <div class="text-center mb-5">
-                <h2 class="fw-bold" data-en="Project Gallery" data-mr="प्रकल्प गॅलरी">Project Gallery</h2>
-                <p class="text-muted" data-en="Photo highlights from Kolhapur ZP school projects." data-mr="कोल्हापूर Zपी शाळा प्रकल्पांमधील फोटो हायलाइट्स.">Photo highlights from Kolhapur ZP school projects.</p>
-            </div>
-            <div class="row g-4">
-                <?php foreach ($galleryImages as $img): ?>
-                    <div class="col-md-6 col-lg-4">
-                        <div class="card shadow-sm h-100">
-                            <img src="<?= htmlspecialchars($img['url']); ?>" class="card-img-top gallery-img" alt="<?= htmlspecialchars($img['title_en']); ?>">
-                            <div class="card-body">
-                                <h6 class="fw-bold" data-en="<?= htmlspecialchars($img['title_en']); ?>" data-mr="<?= htmlspecialchars($img['title_mr']); ?>"><?= htmlspecialchars($img['title_en']); ?></h6>
-                                <span class="badge bg-secondary" data-en="<?= htmlspecialchars($img['stage_en']); ?>" data-mr="<?= htmlspecialchars($img['stage_mr']); ?>"><?= htmlspecialchars($img['stage_en']); ?></span>
-                            </div>
-                        </div>
-                    </div>
-                <?php endforeach; ?>
-            </div>
-        </div>
-    </section>
+      <div class="side-panel">
+        <h3><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg><span data-en="Upcoming Deadlines" data-mr="येणाऱ्या अंतिम मुदती">Upcoming Deadlines</span></h3>
+        <div id="deadlineList"></div>
+      </div>
 
-    <footer class="py-4 bg-dark text-white">
-        <div class="container text-center">
-            <div class="row">
-                <div class="col-md-6 mb-3">
-                    <h6 data-en="Contact" data-mr="संपर्क">Contact</h6>
-                    <p class="small" data-en="Education Department, Zilla Parishad Kolhapur" data-mr="शिक्षण विभाग, जिल्हा परिषद कोल्हापूर">Education Department, Zilla Parishad Kolhapur</p>
-                </div>
-                <div class="col-md-6 mb-3">
-                    <p class="small">support@zpkolhapur-eportal.gov.in</p>
-                </div>
-            </div>
-            <p class="mb-0 small">&copy; <?= date('Y'); ?> Samruddha Shala E-Portal</p>
-        </div>
-    </footer>
+      <div class="side-panel">
+        <h3><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="9"/></svg><span data-en="Recent Activity" data-mr="अलीकडील कार्यवाही">Recent Activity</span></h3>
+        <div id="activityList"></div>
+      </div>
 
-    <div class="modal fade" id="uploadPhotoModal" tabindex="-1" aria-labelledby="uploadPhotoModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered modal-lg">
-            <div class="modal-content">
-                <div class="modal-header bg-faint-blue text-white">
-                    <h5 class="modal-title" id="uploadPhotoModalLabel" data-en="Upload Project Photo" data-mr="प्रकल्प फोटो अपलोड करा">Upload Project Photo</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <form method="post" enctype="multipart/form-data" class="modal-body">
-                    <?php if ($uploadMessage): ?>
-                        <div class="alert alert-success"><?= htmlspecialchars($uploadMessage); ?></div>
-                    <?php elseif ($uploadError): ?>
-                        <div class="alert alert-danger"><?= htmlspecialchars($uploadError); ?></div>
-                    <?php endif; ?>
-                    <div class="row g-3">
-                        <div class="col-md-6">
-                            <label for="photoFile" class="form-label" data-en="Select from Gallery" data-mr="गॅलरीमधून निवडा">Select from Gallery</label>
-                            <input type="file" class="form-control" id="photoFile" name="photoFile" accept="image/*">
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label" data-en="Capture from Camera" data-mr="कॅमेराद्वारे कॅप्चर करा">Capture from Camera</label>
-                            <div class="d-grid gap-2">
-                                <button type="button" class="btn btn-outline-faint-blue" onclick="startCamera()" data-en="Start Camera" data-mr="कॅमेरा सुरू करा">Start Camera</button>
-                                <button type="button" id="captureBtn" class="btn btn-faint-orange" onclick="capturePhoto()" disabled data-en="Capture Photo" data-mr="फोटो कॅप्चर करा">Capture Photo</button>
-                            </div>
-                        </div>
-                        <div class="col-12">
-                            <video id="cameraStream" autoplay playsinline muted></video>
-                            <canvas id="capturedCanvas"></canvas>
-                            <img id="capturedPreview" alt="Captured preview">
-                            <input type="hidden" name="captured_image" id="captured_image" value="">
-                        </div>
-                        <div class="col-12">
-                            <label for="projectNotes" class="form-label" data-en="Project Notes (optional)" data-mr="प्रकल्प टिप्पण्या (ऐच्छिक)">Project Notes (optional)</label>
-                            <textarea id="projectNotes" class="form-control" name="project_notes" rows="3" placeholder="Optional remarks about this upload..." data-en="Optional remarks about this upload..." data-mr="हा अपलोड बद्दल ऐच्छिक टिप्पण्या..."></textarea>
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" data-en="Close" data-mr="बंद करा">Close</button>
-                        <button type="submit" name="upload_photo" class="btn btn-faint-blue" data-en="Upload Photo" data-mr="फोटो अपलोड करा">Upload Photo</button>
-                    </div>
-                </form>
-            </div>
-        </div>
     </div>
+  </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script>
-        let currentLang = 'en';
+  <!-- ===== Footer ===== -->
+  <div class="footer">
+    <div class="footer-item"><span class="status-dot"></span> <span data-en="Server Status:" data-mr="सर्व्हर स्थिती:">Server Status:</span> <b style="color:var(--success)" data-en="Online" data-mr="ऑनलाइन">Online</b></div>
+    <div class="footer-item" id="lastSync" data-en-prefix="Last Sync: " data-mr-prefix="शेवटचे सिंक: ">Last Sync: —</div>
+    <div class="footer-item"><span data-en="Total Projects Monitored:" data-mr="एकूण देखरेख असलेले प्रकल्प:">Total Projects Monitored:</span> <b>246</b></div>
+    <div class="footer-item"><span data-en="Refresh Rate:" data-mr="रिफ्रेश दर:">Refresh Rate:</span> <b>30s</b></div>
+  </div>
 
-        function setLanguage(lang) {
-            currentLang = lang;
-            
-            // 1. Update text for all elements carrying translation attributes
-            document.querySelectorAll('[data-en][data-mr]').forEach(el => {
-                const text = el.getAttribute(lang === 'mr' ? 'data-mr' : 'data-en');
-                if (text) {
-                    const tagName = el.tagName.toLowerCase();
-                    if (tagName === 'input' || tagName === 'textarea') {
-                        el.placeholder = text;
-                    } else {
-                        el.textContent = text;
-                    }
-                }
-            });
+</div>
 
-            // 2. Update Document Title
-            const titleEl = document.querySelector('title');
-            if (titleEl) {
-                const titleText = titleEl.getAttribute(lang === 'mr' ? 'data-mr' : 'data-en');
-                if (titleText) {
-                    document.title = titleText;
-                }
-            }
+<!-- ===== Drawer ===== -->
+<div class="overlay" id="overlay"></div>
+<div class="drawer" id="drawer">
+  <div class="drawer-head">
+    <div>
+      <h3 id="drawerTitle" data-en="Alert Details" data-mr="इशाऱ्याचा तपशील">Alert Details</h3>
+      <p id="drawerSub" data-en="Project overview" data-mr="प्रकल्प आढावा">Project overview</p>
+    </div>
+    <button class="drawer-close" id="drawerClose" aria-label="Close">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+    </button>
+  </div>
+  <div class="drawer-body" id="drawerBody"></div>
+  <div class="drawer-foot">
+    <button class="btn btn-primary" id="drawerApprove" data-en="Approve" data-mr="मंजूर करा">Approve</button>
+    <button class="btn btn-ghost" id="drawerUpdate" data-en="Request Update" data-mr="अद्यतनाची विनंती करा">Request Update</button>
+    <button class="btn btn-ghost" id="drawerDownload" data-en="Download Report" data-mr="अहवाल डाउनलोड करा">Download Report</button>
+    <button class="btn btn-ghost" id="drawerResolve" data-en="Mark Resolved" data-mr="निकाली म्हणून चिन्हांकित करा">Mark Resolved</button>
+  </div>
+</div>
 
-            // 3. Update Toggle Button Text
-            const langBtnText = document.getElementById('langBtnText');
-            if (langBtnText) {
-                langBtnText.textContent = lang === 'en' ? 'मराठी' : 'English';
-            }
+<div class="toast" id="toast"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 7 17l-5-5"/></svg><span id="toastMsg" data-en="Done" data-mr="पूर्ण झाले">Done</span></div>
 
-            // Save preference to localStorage
-            localStorage.setItem('portal_lang', lang);
-        }
+<script src="assets/js/app.js"></script>
+<script>
+/* ===== Language switch: EN <-> MR (structure & CSS untouched) ===== */
+(function () {
+  function applyLanguage(lang) {
+    document.documentElement.setAttribute('lang', lang === 'mr' ? 'mr' : 'en');
+    document.documentElement.setAttribute('data-lang', lang);
 
-        function toggleLanguage() {
-            const newLang = currentLang === 'en' ? 'mr' : 'en';
-            setLanguage(newLang);
-        }
+    // Elements whose full text/innerHTML swaps
+    document.querySelectorAll('[data-en]').forEach(function (el) {
+      var val = el.getAttribute(lang === 'mr' ? 'data-mr' : 'data-en');
+      if (val !== null) el.textContent = val;
+    });
 
-        // Initialize language state on page load
-        document.addEventListener('DOMContentLoaded', () => {
-            const savedLang = localStorage.getItem('portal_lang') || 'en';
-            setLanguage(savedLang);
-        });
-    </script>
+    // Placeholder swap (inputs)
+    document.querySelectorAll('[data-en-placeholder]').forEach(function (el) {
+      var val = el.getAttribute(lang === 'mr' ? 'data-mr-placeholder' : 'data-en-placeholder');
+      if (val !== null) el.setAttribute('placeholder', val);
+    });
+
+    // Prefix swap (e.g. "Last Sync: —")
+    document.querySelectorAll('[data-en-prefix]').forEach(function (el) {
+      var prefix = el.getAttribute(lang === 'mr' ? 'data-mr-prefix' : 'data-en-prefix');
+      var current = el.textContent;
+      var enPrefix = el.getAttribute('data-en-prefix');
+      var mrPrefix = el.getAttribute('data-mr-prefix');
+      var rest = current.replace(enPrefix, '').replace(mrPrefix, '');
+      el.textContent = prefix + rest;
+    });
+
+    // Suffix swap (e.g. "— alerts")
+    document.querySelectorAll('[data-en-suffix]').forEach(function (el) {
+      var suffix = el.getAttribute(lang === 'mr' ? 'data-mr-suffix' : 'data-en-suffix');
+      var current = el.textContent;
+      var enSuffix = el.getAttribute('data-en-suffix');
+      var mrSuffix = el.getAttribute('data-mr-suffix');
+      var base = current.replace(enSuffix, '').replace(mrSuffix, '');
+      el.textContent = base + suffix;
+    });
+
+    document.querySelectorAll('.lang-toggle button').forEach(function (btn) {
+      btn.classList.toggle('active', btn.getAttribute('data-lang') === lang);
+    });
+
+    try { localStorage.setItem('siteLang', lang); } catch (e) {}
+  }
+
+  document.getElementById('langToggle').addEventListener('click', function (e) {
+    var btn = e.target.closest('button[data-lang]');
+    if (!btn) return;
+    applyLanguage(btn.getAttribute('data-lang'));
+  });
+
+  var saved = 'en';
+  try { saved = localStorage.getItem('siteLang') || 'en'; } catch (e) {}
+  applyLanguage(saved);
+})();
+</script>
 </body>
 </html>

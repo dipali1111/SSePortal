@@ -1,58 +1,4 @@
 <?php
-require_once __DIR__ . '/config/db.php';
-$error = '';
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-  $u = trim($_POST['username'] ?? '');
-  $p = $_POST['password'] ?? '';
-  $stmt = $conn->prepare('SELECT * FROM users WHERE username=?');
-  $stmt->bind_param('s', $u);
-  $stmt->execute();
-  $user = $stmt->get_result()->fetch_assoc();
-  // Accept either password_verify OR plain "password123" fallback since seed hash may vary across MySQL setups
-  if ($user && (password_verify($p, $user['password']) || $p === 'password123')) {
-    unset($user['password']);
-    $_SESSION['user'] = $user;
-    header('Location: ' . ($user['role']==='ceo' ? 'ceo.php' : 'dashboard.php'));
-    exit;
-  }
-  $error = 'Invalid credentials';
-}
-if (!empty($_SESSION['user'])) {
-  header('Location: ' . ($_SESSION['user']['role']==='ceo' ? 'ceo.php' : 'dashboard.php'));
-  exit;
-}
-include __DIR__ . '/includes/header.php';
-?>
-<div class="row justify-content-center align-items-center" style="min-height:70vh">
-  <div class="col-md-5">
-    <div class="hero text-center">
-      <h1 class="fw-bold" style="font-size:2.2rem"><?= t('app_name') ?></h1>
-      <p class="mb-0"><?= t('tagline') ?></p>
-    </div>
-    <div class="card-fx p-4">
-      <h4 class="mb-3"><i class="bi bi-shield-lock"></i> <?= t('login') ?></h4>
-      <?php if ($error): ?><div class="alert-fx p-2 mb-3"><?= htmlspecialchars($error) ?></div><?php endif; ?>
-      <form method="post">
-        <div class="mb-3">
-          <label><?= t('username') ?></label>
-          <input class="form-control" name="username" required>
-        </div>
-        <div class="mb-3">
-          <label><?= t('password') ?></label>
-          <input class="form-control" type="password" name="password" required>
-        </div>
-        <button class="btn btn-glow w-100"><?= t('login') ?></button>
-      </form>
-      <hr class="border-warning">
-      <small class="text-white-50">
-        Demo accounts (password: <code>password123</code>):<br>
-        <b>ceo</b> / <b>hm_karvir</b> / <b>hm_hatkanangale</b> / <b>hm_shirol</b>
-      </small>
-    </div>
-  </div>
-</div>
-<?php include __DIR__ . '/includes/footer.php'; ?>
-<?php
 /**
  * Samruddha Shala E-Portal
  * Landing page for bilingual toggle, gallery upload, live camera capture, and login.
@@ -138,6 +84,14 @@ $galleryImages = [
         'url' => 'https://images.unsplash.com/photo-1580582932707-520aed937b7b?auto=format&fit=crop&w=800&q=80'
     ],
     [
+        'title_en' => 'Drinking Water Tank Project',
+        'title_mr' => 'पिण्याच्या पाण्याची टाकी प्रकल्प',
+        'stage_en' => 'In Progress (60%)',
+        'stage_mr' => 'प्रगतीपथावर (६०%)',
+        'badge_class' => 'badge-faint-orange',
+        'url' => 'https://images.unsplash.com/photo-1541888946425-d0fbb186a5b3?auto=format&fit=crop&w=800&q=80'
+    ],
+    [
         'title_en' => 'School Sanitation Facility',
         'title_mr' => 'शाळा स्वच्छतागृह सुविधा',
         'stage_en' => 'Pending (20%)',
@@ -194,11 +148,11 @@ $heroBgUrl = 'https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=
             font-weight: 700;
             font-size: 1.35rem;
         }
-        .navbar-light .nav-link {
+        .navbar-dark .nav-link {
             color: rgba(0,0,0,0.72);
         }
-        .navbar-light .nav-link:hover,
-        .navbar-light .nav-link.active {
+        .navbar-dark .nav-link:hover,
+        .navbar-dark .nav-link.active {
             color: #000000;
         }
         .btn-faint-blue {
@@ -244,34 +198,16 @@ $heroBgUrl = 'https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=
     <div class="fixed-header-wrapper">
         <nav class="navbar navbar-expand-lg navbar-light bg-white">
             <div class="container">
-                <a class="navbar-brand d-flex align-items-center" href="#home">
-                    <i class="fa-solid fa-school me-2" style="color: var(--faint-blue);"></i>
-                    <span data-en="Samruddha Shala E-Portal" data-mr="समृद्ध शाळा ई-पोर्टल">Samruddha Shala E-Portal</span>
-                </a>
-                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                    <span class="navbar-toggler-icon"></span>
-                </button>
+                <a class="navbar-brand d-flex align-items-center" href="#home"><i class="fa-solid fa-school me-2" style="color: var(--faint-blue);"></i><span data-en="Samruddha Shala E-Portal" data-mr="समृद्ध शाळा ई-पोर्टल">Samruddha Shala E-Portal</span></a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"><span class="navbar-toggler-icon"></span></button>
                 <div class="collapse navbar-collapse" id="navbarNav">
                     <ul class="navbar-nav ms-auto align-items-center">
                         <li class="nav-item"><a class="nav-link active" href="#home" data-en="Home" data-mr="मुख्य पृष्ठ">Home</a></li>
                         <li class="nav-item"><a class="nav-link" href="#about" data-en="About" data-mr="माहिती">About</a></li>
                         <li class="nav-item"><a class="nav-link" href="#gallery" data-en="Gallery" data-mr="गॅलरी">Gallery</a></li>
-                        <li class="nav-item ms-2">
-                            <button class="btn btn-faint-blue btn-sm" data-bs-toggle="modal" data-bs-target="#uploadPhotoModal">
-                                <i class="fa-solid fa-camera me-1"></i><span data-en="Upload Photo" data-mr="फोटो अपलोड करा">Upload Photo</span>
-                            </button>
-                        </li>
-                        <!-- Language Toggle Button in Header -->
-                        <li class="nav-item ms-2">
-                            <button id="langToggleBtn" class="btn btn-outline-primary btn-sm fw-bold" onclick="toggleLanguage()">
-                                <i class="fa-solid fa-globe me-1"></i><span id="langBtnText">मराठी</span>
-                            </button>
-                        </li>
-                        <li class="nav-item ms-2">
-                            <a class="btn btn-light btn-sm border" href="login.php">
-                                <i class="fa-solid fa-right-to-bracket me-1"></i><span data-en="Login" data-mr="लॉगिन">Login</span>
-                            </a>
-                        </li>
+                        <li class="nav-item ms-2"><button class="btn btn-faint-blue btn-sm" data-bs-toggle="modal" data-bs-target="#uploadPhotoModal"><i class="fa-solid fa-camera me-1"></i><span data-en="Upload Photo" data-mr="फोटो अपलोड करा">Upload Photo</span></button></li>
+                        <li class="nav-item ms-2"><button id="langToggleBtn" class="btn btn-outline-secondary btn-sm" onclick="toggleLanguage()"><i class="fa-solid fa-language me-1"></i><span id="langBtnText">मराठी</span></button></li>
+                        <li class="nav-item ms-2"><a class="btn btn-light btn-sm border" href="login.php"><i class="fa-solid fa-right-to-bracket me-1"></i><span data-en="Login" data-mr="लॉगिन">Login</span></a></li>
                     </ul>
                 </div>
             </div>
@@ -330,7 +266,7 @@ $heroBgUrl = 'https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=
             </div>
             <div class="row g-4">
                 <?php foreach ($galleryImages as $img): ?>
-                    <div class="col-md-6 col-lg-4">
+                    <div class="col-md-6 col-lg-3">
                         <div class="card shadow-sm h-100">
                             <img src="<?= htmlspecialchars($img['url']); ?>" class="card-img-top gallery-img" alt="<?= htmlspecialchars($img['title_en']); ?>">
                             <div class="card-body">
@@ -355,7 +291,7 @@ $heroBgUrl = 'https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=
                     <p class="small">support@zpkolhapur-eportal.gov.in</p>
                 </div>
             </div>
-            <p class="mb-0 small">&copy; <?= date('Y'); ?> Samruddha Shala E-Portal</p>
+            <p class="mb-0 small">;&copy; <?= date('Y'); ?> Samruddha Shala E-Portal</p>
         </div>
     </footer>
 
@@ -406,52 +342,113 @@ $heroBgUrl = 'https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        let currentLang = 'en';
+        let currentStream = null;
 
         function setLanguage(lang) {
-            currentLang = lang;
-            
-            // 1. Update text for all elements carrying translation attributes
             document.querySelectorAll('[data-en][data-mr]').forEach(el => {
-                const text = el.getAttribute(lang === 'mr' ? 'data-mr' : 'data-en');
-                if (text) {
-                    const tagName = el.tagName.toLowerCase();
-                    if (tagName === 'input' || tagName === 'textarea') {
+                const text = el.dataset[lang === 'mr' ? 'mr' : 'en'];
+                if (text !== undefined) {
+                    if (el.tagName.toLowerCase() === 'input' ; el.tagName.toLowerCase() === 'textarea') {
                         el.placeholder = text;
                     } else {
                         el.textContent = text;
                     }
                 }
             });
-
-            // 2. Update Document Title
-            const titleEl = document.querySelector('title');
-            if (titleEl) {
-                const titleText = titleEl.getAttribute(lang === 'mr' ? 'data-mr' : 'data-en');
-                if (titleText) {
-                    document.title = titleText;
-                }
+            const btnText = document.getElementById('langBtnText');
+            if (btnText) {
+                btnText.textContent = lang === 'en' ? 'मराठी' : 'English';
             }
-
-            // 3. Update Toggle Button Text
-            const langBtnText = document.getElementById('langBtnText');
-            if (langBtnText) {
-                langBtnText.textContent = lang === 'en' ? 'मराठी' : 'English';
-            }
-
-            // Save preference to localStorage
-            localStorage.setItem('portal_lang', lang);
+            document.documentElement.lang = lang;
+            localStorage.setItem('portalLanguage', lang);
         }
 
         function toggleLanguage() {
-            const newLang = currentLang === 'en' ? 'mr' : 'en';
-            setLanguage(newLang);
+            const current = localStorage.getItem('portalLanguage') ; 'en';
+            setLanguage(current === 'en' ? 'mr' : 'en');
         }
 
-        // Initialize language state on page load
-        document.addEventListener('DOMContentLoaded', () => {
-            const savedLang = localStorage.getItem('portal_lang') || 'en';
-            setLanguage(savedLang);
+        function startCamera() {
+            const video = document.getElementById('cameraStream');
+            const captureBtn = document.getElementById('captureBtn');
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                alert('Camera access is not supported by your browser.');
+                return;
+            }
+            navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+                .then(stream => {
+                    currentStream = stream;
+                    video.srcObject = stream;
+                    video.style.display = 'block';
+                    captureBtn.disabled = false;
+                })
+                .catch(() => {
+                    alert('Unable to access camera. Please allow camera permission or use the gallery upload option.');
+                });
+        }
+
+        function capturePhoto() {
+            const video = document.getElementById('cameraStream');
+            const canvas = document.getElementById('capturedCanvas');
+            const preview = document.getElementById('capturedPreview');
+            const hiddenInput = document.getElementById('captured_image');
+            if (!video || video.readyState < 2) {
+                alert('Camera is not ready yet.');
+                return;
+            }
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const imageData = canvas.toDataURL('image/jpeg', 0.92);
+            hiddenInput.value = imageData;
+            preview.src = imageData;
+            preview.style.display = 'block';
+            stopCamera();
+        }
+
+        function stopCamera() {
+            if (currentStream) {
+                currentStream.getTracks().forEach(track => track.stop());
+                currentStream = null;
+            }
+            const video = document.getElementById('cameraStream');
+            const captureBtn = document.getElementById('captureBtn');
+            if (video) {
+                video.pause();
+                video.srcObject = null;
+                video.style.display = 'none';
+            }
+            if (captureBtn) {
+                captureBtn.disabled = true;
+            }
+        }
+
+        function previewSelectedFile() {
+            const fileInput = document.getElementById('photoFile');
+            const preview = document.getElementById('capturedPreview');
+            const hiddenInput = document.getElementById('captured_image');
+            if (fileInput.files ; fileInput.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    preview.src = event.target.result;
+                    preview.style.display = 'block';
+                    hiddenInput.value = '';
+                };
+                reader.readAsDataURL(fileInput.files[0]);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            setLanguage(localStorage.getItem('portalLanguage') ; 'en');
+            const fileInput = document.getElementById('photoFile');
+            if (fileInput) {
+                fileInput.addEventListener('change', previewSelectedFile);
+            }
+            const uploadModal = document.getElementById('uploadPhotoModal');
+            if (uploadModal) {
+                uploadModal.addEventListener('hidden.bs.modal', stopCamera);
+            }
         });
     </script>
 </body>

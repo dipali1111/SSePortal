@@ -1,0 +1,22 @@
+<?php
+return [
+  'app_name' => 'Kolhapur Schools Dashboard',
+  'tagline' => 'Track work deadlines, verify progress, resolve blockers',
+  'login' => 'Login', 'logout' => 'Logout', 'username' => 'Username', 'password' => 'Password',
+  'role' => 'Role', 'hm' => 'Head Master', 'ceo' => 'CEO', 'admin' => 'Admin',
+  'dashboard' => 'Dashboard', 'ceo_dashboard' => 'CEO Overview',
+  'taluka' => 'Taluka', 'school' => 'School', 'all_talukas' => 'All Talukas', 'all_schools' => 'All Schools',
+  'works' => 'Assigned Works', 'add_work' => 'Add Work', 'title' => 'Title', 'description' => 'Description',
+  'deadline' => 'Deadline', 'status' => 'Status', 'progress' => 'Progress',
+  'pending' => 'Pending', 'in_progress' => 'In Progress', 'completed' => 'Completed', 'overdue' => 'Overdue',
+  'upload_photo' => 'Upload Progress Photo', 'update_progress' => 'Update Progress',
+  'blockers' => 'Blockers', 'report_blocker' => 'Report Blocker', 'suggested_solution' => 'Suggested Solution',
+  'alerts' => 'Alerts', 'no_alerts' => 'No alerts', 'view' => 'View', 'submit' => 'Submit',
+  'photo' => 'Photo', 'notes' => 'Notes', 'created' => 'Created', 'assigned_by' => 'Assigned By',
+  'total_works' => 'Total Works', 'active_blockers' => 'Active Blockers', 'overdue_works' => 'Overdue',
+  'welcome' => 'Welcome', 'language' => 'Language',
+  'resolve' => 'Resolve', 'resolved' => 'Resolved',
+  'select_school' => 'Select School', 'select_taluka' => 'Select Taluka',
+  'progress_verified' => 'Progress verified by photo & notes',
+  'kolhapur_schools' => 'Kolhapur District Schools',
+];
